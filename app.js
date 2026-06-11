@@ -179,6 +179,7 @@ function createInitialState() {
   return {
     currentStep: 0,
     groupPredictions,
+    completedGroups: [],
     bestThirds: [],
     matches: {},
     winners: {},
@@ -312,13 +313,19 @@ function scoreChampion(predictedChampion, actualChampion, points) {
 
 function getActualProgress() {
   return {
-    r32: getTeamsFromMatches(state.matches.round32 || []),
+    r32: [...new Set([...getCompletedGroupQualifiers(), ...getTeamsFromMatches(state.matches.round32 || [])])],
     r16: getKnownWinners("round32"),
     qf: getKnownWinners("round16"),
     sf: getKnownWinners("quarterfinals"),
     final: getKnownWinners("semifinals"),
     champion: state.winners[104] || ""
   };
+}
+
+function getCompletedGroupQualifiers() {
+  return (state.completedGroups || [])
+    .filter((letter) => groupLetters.includes(letter) && isGroupValid(letter))
+    .flatMap((letter) => state.groupPredictions[letter].slice(0, 2));
 }
 
 function getTeamsFromMatches(matches) {
@@ -345,13 +352,16 @@ function renderGroupStep(container) {
 
 function renderGroupCard(letter) {
   const prediction = state.groupPredictions[letter];
-  const isComplete = isGroupValid(letter);
+  const isValid = isGroupValid(letter);
+  const isComplete = (state.completedGroups || []).includes(letter);
 
   return `
     <article class="card">
       <div class="group-title">
         <h3>Grupo ${letter}</h3>
-        <span class="complete-badge ${isComplete ? "ok" : ""}">${isComplete ? "Completo" : "Revisar"}</span>
+        <button class="complete-badge ${isComplete ? "ok" : ""}" type="button" data-complete-group="${letter}" ${isValid ? "" : "disabled"}>
+          ${isComplete ? "Completado" : "Completo"}
+        </button>
       </div>
       ${[0, 1, 2, 3].map((index) => renderRankRow(letter, index, prediction[index])).join("")}
     </article>
@@ -548,6 +558,20 @@ function selectWinner(matchId, team) {
   state.winners[matchId] = team;
   clearDependentWinners(matchId);
   buildNextRounds();
+  renderCurrentStep();
+}
+
+function toggleCompletedGroup(group) {
+  if (!groupLetters.includes(group) || !isGroupValid(group)) return;
+
+  const completed = new Set(state.completedGroups || []);
+  if (completed.has(group)) {
+    completed.delete(group);
+  } else {
+    completed.add(group);
+  }
+
+  state.completedGroups = [...completed].sort();
   renderCurrentStep();
 }
 
@@ -754,6 +778,7 @@ function loadState() {
         ...createInitialState().groupPredictions,
         ...(parsed.groupPredictions || {})
       },
+      completedGroups: Array.isArray(parsed.completedGroups) ? parsed.completedGroups : [],
       matches: parsed.matches || {},
       winners: parsed.winners || {}
     };
@@ -770,6 +795,7 @@ function migrateSavedGroupPredictions() {
       state.groupPredictions[letter] = [...groups[letter]];
     }
   });
+  state.completedGroups = [...new Set(state.completedGroups)].filter((letter) => groupLetters.includes(letter));
 }
 
 function resetState({ clearStorage = false } = {}) {
@@ -847,6 +873,13 @@ document.addEventListener("click", (event) => {
     state.winners = {};
     state.matches = {};
     renderCurrentStep();
+    return;
+  }
+
+  const completeGroupButton = event.target.closest("[data-complete-group]");
+  if (completeGroupButton) {
+    const group = completeGroupButton.dataset.completeGroup;
+    toggleCompletedGroup(group);
     return;
   }
 
