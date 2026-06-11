@@ -1,6 +1,6 @@
 "use strict";
 
-const STORAGE_KEY = "porraMundial2026LiveScoreV2";
+const STORAGE_KEY = "porraMundial2026CreatorState";
 
 const groups = {
   A: ["México", "Sudáfrica", "República de Corea", "República Checa"],
@@ -26,7 +26,9 @@ const steps = [
   { key: "round16", title: "Octavos" },
   { key: "quarterfinals", title: "Cuartos" },
   { key: "semifinals", title: "Semifinales" },
-  { key: "final", title: "Final" }
+  { key: "thirdPlace", title: "Tercer puesto" },
+  { key: "final", title: "Final" },
+  { key: "summary", title: "Resumen final" }
 ];
 
 const roundNames = {
@@ -34,6 +36,7 @@ const roundNames = {
   round16: "Octavos",
   quarterfinals: "Cuartos",
   semifinals: "Semifinales",
+  thirdPlace: "Tercer puesto",
   final: "Final"
 };
 

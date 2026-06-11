@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Porra Mundial 2026</title>
+    <title>Crear porra Mundial 2026</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%230c6f5c'/%3E%3Cpath fill='white' d='M20 18h24v28H20z'/%3E%3Cpath fill='%23c7353d' d='M20 18h8v28h-8zM36 18h8v28h-8z'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="styles.css">
   </head>
@@ -12,11 +12,11 @@
       <header class="app-header">
         <div>
           <p class="eyebrow">Mundial 2026</p>
-          <h1>Marcador de la porra familiar</h1>
+          <h1>Porra paso a paso - versión 2</h1>
         </div>
         <div class="header-actions">
-          <a class="button button-secondary link-button" href="crear-porra.html">Crear porra antigua</a>
-          <button id="resetButton" class="button button-ghost" type="button">Reiniciar resultados</button>
+          <a class="button button-secondary link-button" href="./">Ver marcador</a>
+          <button id="resetButton" class="button button-ghost" type="button">Reiniciar porra</button>
         </div>
       </header>
 
@@ -29,18 +29,16 @@
         </section>
 
         <section id="message" class="message" role="status" aria-live="polite" hidden></section>
-        <section id="leaderboard" class="leaderboard-panel" aria-label="Clasificación familiar"></section>
         <section id="app" class="step-content"></section>
 
         <nav class="nav-actions" aria-label="Navegación de la porra">
           <button id="prevButton" class="button button-secondary" type="button">Anterior</button>
-          <button id="clearStorageButton" class="button button-ghost" type="button">Borrar resultados guardados</button>
+          <button id="clearStorageButton" class="button button-ghost" type="button">Borrar datos guardados</button>
           <button id="nextButton" class="button button-primary" type="button">Siguiente</button>
         </nav>
       </main>
     </div>
 
-    <script src="forecasts.js"></script>
-    <script src="app.js"></script>
+    <script src="crear-porra.js"></script>
   </body>
 </html>
