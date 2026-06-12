@@ -37,16 +37,22 @@ def parse_args():
         "--nombre",
         help="Nombre de la persona que hace el pronóstico para mostrarlo en la cabecera.",
     )
+    parser.add_argument(
+        "--allow-invalid",
+        action="store_true",
+        help="Dibuja el cuadro aunque el texto no pase la validación oficial.",
+    )
     return parser.parse_args()
 
 
-def load_matches_from_text(text):
-    errors = validate_text(text)
-    if errors:
-        print(f"ERROR: el texto no pasa la validación ({len(errors)} problema(s)):")
-        for error in errors:
-            print(f"- {error}")
-        raise SystemExit(1)
+def load_matches_from_text(text, allow_invalid=False):
+    if not allow_invalid:
+        errors = validate_text(text)
+        if errors:
+            print(f"ERROR: el texto no pasa la validación ({len(errors)} problema(s)):")
+            for error in errors:
+                print(f"- {error}")
+            raise SystemExit(1)
 
     parse_errors = []
     matches = parse_matches(parse_sections(text), parse_errors)
@@ -63,10 +69,10 @@ def match_tuple(matches, number):
     return (str(number), match.team1, match.team2, match.winner)
 
 
-def apply_text_bracket(text):
+def apply_text_bracket(text, allow_invalid=False):
     global left_r16, right_r16, left_r8, right_r8, left_qf, right_qf, left_sf, right_sf, final
 
-    matches = load_matches_from_text(text)
+    matches = load_matches_from_text(text, allow_invalid=allow_invalid)
     required = tuple(range(73, 105))
     missing = [number for number in required if number not in matches]
     if missing:
@@ -98,7 +104,7 @@ def read_input(args):
 
 
 args = parse_args()
-apply_text_bracket(read_input(args))
+apply_text_bracket(read_input(args), allow_invalid=args.allow_invalid)
 
 W, H = 3200, 1850
 img = Image.new("RGB", (W, H), "white")
