@@ -169,6 +169,7 @@ const nextRoundSchemas = {
 };
 
 let state = createInitialState();
+let selectedForecastId = "";
 
 function createInitialState() {
   const groupPredictions = {};
@@ -189,16 +190,19 @@ function createInitialState() {
 
 function renderCurrentStep() {
   clearMessage();
-  buildAvailableMatches();
+  buildAvailableMatches(state);
   renderProgress();
 
   const step = steps[state.currentStep];
   const app = document.getElementById("app");
+  const selectedForecast = getSelectedForecast();
+  const viewState = selectedForecast ? buildForecastViewState(selectedForecast) : state;
+  const readonly = Boolean(selectedForecast);
 
-  if (step.key === "groups") renderGroupStep(app);
-  if (step.key === "thirds") renderBestThirdsStep(app);
+  if (step.key === "groups") renderGroupStep(app, viewState, readonly, selectedForecast);
+  if (step.key === "thirds") renderBestThirdsStep(app, viewState, readonly, selectedForecast);
   if (["round32", "round16", "quarterfinals", "semifinals", "thirdPlace", "final"].includes(step.key)) {
-    renderKnockoutStep(app, step.key);
+    renderKnockoutStep(app, step.key, viewState, readonly, selectedForecast);
   }
   if (document.getElementById("leaderboard")) renderLeaderboard();
 
@@ -259,10 +263,17 @@ function renderLeaderboard() {
 }
 
 function renderScoreRow(score, index) {
+  const active = score.id === selectedForecastId;
+
   return `
-    <tr>
+    <tr class="${active ? "forecast-row-active" : ""}">
       <td>${index + 1}</td>
-      <td><strong>${escapeHtml(score.name)}</strong><span class="file-name">${escapeHtml(score.file)}</span></td>
+      <td>
+        <button class="player-button" type="button" data-forecast-player="${escapeAttr(score.id)}" aria-pressed="${active}">
+          <strong>${escapeHtml(score.name)}</strong>
+          <span class="file-name">${active ? "Viendo pronóstico" : escapeHtml(score.file)}</span>
+        </button>
+      </td>
       <td><strong>${score.total}</strong></td>
       ${scoreRules.map((rule) => `<td title="${escapeHtml(score.hits[rule.key].teams.join(", "))}">${score.hits[rule.key].points}</td>`).join("")}
     </tr>
@@ -272,6 +283,91 @@ function renderScoreRow(score, index) {
 function renderKnownStage(label, teams) {
   const text = teams.length ? `${teams.length} equipos definidos` : "pendiente";
   return `<span><strong>${label}:</strong> ${text}</span>`;
+}
+
+function getSelectedForecast() {
+  return familyForecasts.find((forecast) => forecast.id === selectedForecastId) || null;
+}
+
+function renderForecastPreviewBanner(forecast) {
+  if (!forecast) return "";
+
+  return `
+    <div class="forecast-preview-banner">
+      <span>Viendo la porra de <strong>${escapeHtml(forecast.name)}</strong></span>
+      <button class="button button-ghost" type="button" data-clear-forecast>Volver a resultados</button>
+    </div>
+  `;
+}
+
+function buildForecastViewState(forecast) {
+  const viewState = createInitialState();
+  viewState.currentStep = state.currentStep;
+  viewState.groupPredictions = cloneGroupPredictions(forecast.groupPredictions || viewState.groupPredictions);
+  viewState.completedGroups = [...groupLetters];
+  viewState.bestThirds = [...(forecast.bestThirds || [])].filter((letter) => groupLetters.includes(letter));
+  viewState.matches = {};
+  viewState.winners = {};
+
+  if (forecast.matches) {
+    viewState.matches = cloneForecastMatches(forecast.matches);
+    applyForecastMatchWinners(viewState, forecast);
+  } else {
+    buildAvailableMatches(viewState);
+    applyForecastWinners(viewState, forecast);
+  }
+
+  return viewState;
+}
+
+function cloneGroupPredictions(groupPredictions) {
+  return groupLetters.reduce((copy, letter) => {
+    copy[letter] = [...(groupPredictions[letter] || groups[letter])];
+    return copy;
+  }, {});
+}
+
+function applyForecastWinners(targetState, forecast) {
+  applyForecastRoundWinners(targetState, "round32", forecast.r16 || []);
+  buildNextRounds(targetState);
+  applyForecastRoundWinners(targetState, "round16", forecast.qf || []);
+  buildNextRounds(targetState);
+  applyForecastRoundWinners(targetState, "quarterfinals", forecast.sf || []);
+  buildNextRounds(targetState);
+  applyForecastRoundWinners(targetState, "semifinals", forecast.final || []);
+  buildNextRounds(targetState);
+  applyForecastRoundWinners(targetState, "final", forecast.champion ? [forecast.champion] : []);
+  applyForecastRoundWinners(targetState, "thirdPlace", forecast.third ? [forecast.third] : []);
+}
+
+function cloneForecastMatches(matches) {
+  return Object.entries(matches).reduce((copy, [roundKey, roundMatches]) => {
+    copy[roundKey] = roundMatches.map((match) => ({ ...match }));
+    return copy;
+  }, {});
+}
+
+function applyForecastMatchWinners(targetState, forecast) {
+  const winnersByRound = {
+    round32: forecast.r16 || [],
+    round16: forecast.qf || [],
+    quarterfinals: forecast.sf || [],
+    semifinals: forecast.final || [],
+    final: forecast.champion ? [forecast.champion] : [],
+    thirdPlace: forecast.third ? [forecast.third] : []
+  };
+
+  Object.entries(winnersByRound).forEach(([roundKey, winners]) => {
+    applyForecastRoundWinners(targetState, roundKey, winners);
+  });
+}
+
+function applyForecastRoundWinners(targetState, roundKey, predictedWinners) {
+  const winnerSet = new Set(predictedWinners);
+  (targetState.matches[roundKey] || []).forEach((match) => {
+    const winner = [match.teamA, match.teamB].find((team) => winnerSet.has(team));
+    if (winner) targetState.winners[match.id] = winner;
+  });
 }
 
 function calculateScores() {
@@ -336,39 +432,51 @@ function getKnownWinners(roundKey) {
   return [...new Set((state.matches[roundKey] || []).map((match) => state.winners[match.id]).filter(Boolean))];
 }
 
-function renderGroupStep(container) {
+function renderGroupStep(container, viewState = state, readonly = false, forecast = null) {
   container.innerHTML = `
+    ${renderForecastPreviewBanner(forecast)}
     <div class="phase-head">
       <div>
         <h2>Ordena cada grupo</h2>
-        <p class="intro-text">Elige del 1.º al 4.º. No se puede repetir equipo dentro de un grupo.</p>
+        <p class="intro-text">${readonly ? `Orden definido en la porra de ${escapeHtml(forecast.name)}.` : "Elige del 1.º al 4.º. No se puede repetir equipo dentro de un grupo."}</p>
       </div>
     </div>
     <div class="group-grid">
-      ${groupLetters.map(renderGroupCard).join("")}
+      ${groupLetters.map((letter) => renderGroupCard(letter, viewState, readonly)).join("")}
     </div>
   `;
 }
 
-function renderGroupCard(letter) {
-  const prediction = state.groupPredictions[letter];
-  const isValid = isGroupValid(letter);
-  const isComplete = (state.completedGroups || []).includes(letter);
+function renderGroupCard(letter, viewState = state, readonly = false) {
+  const prediction = viewState.groupPredictions[letter];
+  const isValid = isGroupValid(letter, viewState);
+  const isComplete = (viewState.completedGroups || []).includes(letter);
 
   return `
     <article class="card">
       <div class="group-title">
         <h3>Grupo ${letter}</h3>
-        <button class="complete-badge ${isComplete ? "ok" : ""}" type="button" data-complete-group="${letter}" ${isValid ? "" : "disabled"}>
-          ${isComplete ? "Completado" : "Completo"}
-        </button>
+        ${readonly
+          ? `<span class="complete-badge ok">Pronóstico</span>`
+          : `<button class="complete-badge ${isComplete ? "ok" : ""}" type="button" data-complete-group="${letter}" ${isValid ? "" : "disabled"}>
+              ${isComplete ? "Completado" : "Completo"}
+            </button>`}
       </div>
-      ${[0, 1, 2, 3].map((index) => renderRankRow(letter, index, prediction[index])).join("")}
+      ${[0, 1, 2, 3].map((index) => renderRankRow(letter, index, prediction[index], readonly)).join("")}
     </article>
   `;
 }
 
-function renderRankRow(letter, index, selectedTeam) {
+function renderRankRow(letter, index, selectedTeam, readonly = false) {
+  if (readonly) {
+    return `
+      <div class="rank-row forecast-rank-row">
+        <span class="rank-number">${index + 1}.º</span>
+        <span class="forecast-rank-team">${escapeHtml(selectedTeam)}</span>
+      </div>
+    `;
+  }
+
   const options = groups[letter]
     .map((team) => `<option value="${escapeHtml(team)}" ${team === selectedTeam ? "selected" : ""}>${escapeHtml(team)}</option>`)
     .join("");
@@ -387,58 +495,59 @@ function renderRankRow(letter, index, selectedTeam) {
   `;
 }
 
-function renderBestThirdsStep(container) {
-  const thirds = getThirds();
-  const selectedCount = state.bestThirds.length;
-  const eliminated = thirds.filter((third) => !state.bestThirds.includes(third.group));
+function renderBestThirdsStep(container, viewState = state, readonly = false, forecast = null) {
+  const thirds = getThirds(viewState);
+  const selectedCount = viewState.bestThirds.length;
+  const eliminated = thirds.filter((third) => !viewState.bestThirds.includes(third.group));
 
   container.innerHTML = `
+    ${renderForecastPreviewBanner(forecast)}
     <div class="phase-head">
       <div>
         <h2>Elige los 8 mejores terceros</h2>
-        <p class="intro-text">Selecciona exactamente 8 de los 12 terceros.</p>
+        <p class="intro-text">${readonly ? `Mejores terceros definidos en la porra de ${escapeHtml(forecast.name)}.` : "Selecciona exactamente 8 de los 12 terceros."}</p>
       </div>
       <span class="counter">${selectedCount}/8</span>
     </div>
     <div class="thirds-grid">
-      ${thirds.map(renderThirdOption).join("")}
+      ${thirds.map((third) => renderThirdOption(third, viewState, readonly)).join("")}
     </div>
     ${eliminated.length === 4 ? `<p class="hint">Eliminados ahora mismo: ${eliminated.map(formatThird).join(", ")}.</p>` : ""}
   `;
 }
 
-function renderThirdOption(third) {
-  const checked = state.bestThirds.includes(third.group);
+function renderThirdOption(third, viewState = state, readonly = false) {
+  const checked = viewState.bestThirds.includes(third.group);
   return `
     <label class="third-option ${checked ? "selected" : ""}">
-      <input type="checkbox" value="${third.group}" ${checked ? "checked" : ""}>
+      <input type="checkbox" value="${third.group}" ${checked ? "checked" : ""} ${readonly ? "disabled" : ""}>
       <span><strong>3.º Grupo ${third.group}</strong><br>${escapeHtml(third.team)}</span>
     </label>
   `;
 }
 
-function buildRoundOf32() {
-  const assignment = assignBestThirds(state.bestThirds);
-  state.assignmentNote = assignment.note;
+function buildRoundOf32(targetState = state) {
+  const assignment = assignBestThirds(targetState.bestThirds);
+  targetState.assignmentNote = assignment.note;
 
   const thirdByMatch = assignment.slots.reduce((map, slot) => {
     map[slot.matchId] = slot.group;
     return map;
   }, {});
 
-  state.matches.round32 = round32Schema.map((match) => {
+  targetState.matches.round32 = round32Schema.map((match) => {
     const thirdGroup = thirdByMatch[match.id] || null;
     return {
       id: match.id,
       round: "round32",
-      teamA: resolveSeed(match.a),
-      teamB: match.b === "3*" ? resolveSeed(`3${thirdGroup}`) : resolveSeed(match.b),
+      teamA: resolveSeed(match.a, targetState),
+      teamB: match.b === "3*" ? resolveSeed(`3${thirdGroup}`, targetState) : resolveSeed(match.b, targetState),
       seedA: match.a,
       seedB: match.b === "3*" ? `3${thirdGroup}` : match.b
     };
   });
 
-  pruneWinnersForExistingMatches();
+  pruneWinnersForExistingMatches(targetState);
 }
 
 function assignBestThirds(selectedGroups) {
@@ -456,71 +565,72 @@ function assignBestThirds(selectedGroups) {
   };
 }
 
-function buildNextRounds() {
-  state.matches.round16 = buildRoundFromWinners("round16");
-  state.matches.quarterfinals = buildRoundFromWinners("quarterfinals");
-  state.matches.semifinals = buildRoundFromWinners("semifinals");
-  state.matches.final = buildRoundFromWinners("final");
-  state.matches.thirdPlace = buildThirdPlaceMatch();
-  pruneWinnersForExistingMatches();
+function buildNextRounds(targetState = state) {
+  targetState.matches.round16 = buildRoundFromWinners("round16", targetState);
+  targetState.matches.quarterfinals = buildRoundFromWinners("quarterfinals", targetState);
+  targetState.matches.semifinals = buildRoundFromWinners("semifinals", targetState);
+  targetState.matches.final = buildRoundFromWinners("final", targetState);
+  targetState.matches.thirdPlace = buildThirdPlaceMatch(targetState);
+  pruneWinnersForExistingMatches(targetState);
 }
 
-function buildRoundFromWinners(roundKey) {
+function buildRoundFromWinners(roundKey, targetState = state) {
   return nextRoundSchemas[roundKey].map((schema) => ({
     id: schema.id,
     round: roundKey,
-    teamA: state.winners[schema.from[0]] || "",
-    teamB: state.winners[schema.from[1]] || "",
+    teamA: targetState.winners[schema.from[0]] || "",
+    teamB: targetState.winners[schema.from[1]] || "",
     from: schema.from
   }));
 }
 
-function buildThirdPlaceMatch() {
+function buildThirdPlaceMatch(targetState = state) {
   return nextRoundSchemas.thirdPlace.map((schema) => ({
     id: schema.id,
     round: "thirdPlace",
-    teamA: getLoser(schema.loserFrom[0]),
-    teamB: getLoser(schema.loserFrom[1]),
+    teamA: getLoser(schema.loserFrom[0], targetState),
+    teamB: getLoser(schema.loserFrom[1], targetState),
     loserFrom: schema.loserFrom
   }));
 }
 
-function buildAvailableMatches() {
-  if (validateAllGroups().ok && state.bestThirds.length === 8) {
-    buildRoundOf32();
-    buildNextRounds();
+function buildAvailableMatches(targetState = state) {
+  if (validateAllGroups(targetState).ok && targetState.bestThirds.length === 8) {
+    buildRoundOf32(targetState);
+    buildNextRounds(targetState);
   }
 }
 
-function renderKnockoutStep(container, roundKey) {
-  const matches = state.matches[roundKey] || [];
-  const note = roundKey === "round32" && state.assignmentNote
-    ? `<p class="assignment-note">${escapeHtml(state.assignmentNote)}</p>`
+function renderKnockoutStep(container, roundKey, viewState = state, readonly = false, forecast = null) {
+  const matches = viewState.matches[roundKey] || [];
+  const note = roundKey === "round32" && viewState.assignmentNote
+    ? `<p class="assignment-note">${escapeHtml(viewState.assignmentNote)}</p>`
     : "";
 
   container.innerHTML = `
+    ${renderForecastPreviewBanner(forecast)}
     <div class="phase-head">
       <div>
         <h2>${roundNames[roundKey]}</h2>
-        <p class="intro-text">Toca el equipo que gana cada partido.</p>
+        <p class="intro-text">${readonly ? `Ganadores marcados según la porra de ${escapeHtml(forecast.name)}.` : "Toca el equipo que gana cada partido."}</p>
       </div>
     </div>
     ${note}
     <div class="match-grid">
-      ${matches.map(renderMatchCard).join("")}
+      ${matches.map((match) => renderMatchCard(match, viewState, readonly)).join("")}
     </div>
   `;
 }
 
-function renderMatchCard(match) {
-  const winner = state.winners[match.id] || "";
+function renderMatchCard(match, viewState = state, readonly = false) {
+  const winner = viewState.winners[match.id] || "";
   const disabled = !match.teamA || !match.teamB;
 
   return `
     <article class="match-card">
       <div class="match-meta">Partido ${match.id}</div>
-      ${renderTeamChoice(match.id, match.teamA, winner, disabled)}
-      ${renderTeamChoice(match.id, match.teamB, winner, disabled)}
+      ${renderTeamChoice(match.id, match.teamA, winner, disabled || readonly)}
+      ${renderTeamChoice(match.id, match.teamB, winner, disabled || readonly)}
     </article>
   `;
 }
@@ -557,7 +667,7 @@ function selectWinner(matchId, team) {
 
   state.winners[matchId] = team;
   clearDependentWinners(matchId);
-  buildNextRounds();
+  buildNextRounds(state);
   renderCurrentStep();
 }
 
@@ -697,8 +807,8 @@ function validateBeforeNext() {
   return { ok: true };
 }
 
-function validateAllGroups() {
-  const invalid = groupLetters.filter((letter) => !isGroupValid(letter));
+function validateAllGroups(targetState = state) {
+  const invalid = groupLetters.filter((letter) => !isGroupValid(letter, targetState));
   if (invalid.length) {
     return { ok: false, message: `Revisa estos grupos: ${invalid.map((letter) => `Grupo ${letter}`).join(", ")}. Deben tener cuatro equipos distintos.` };
   }
@@ -713,34 +823,34 @@ function validateRound(roundKey) {
   return { ok: true };
 }
 
-function isGroupValid(letter) {
-  const prediction = state.groupPredictions[letter] || [];
+function isGroupValid(letter, targetState = state) {
+  const prediction = targetState.groupPredictions[letter] || [];
   return prediction.length === 4 && new Set(prediction).size === 4 && prediction.every((team) => groups[letter].includes(team));
 }
 
-function getThirds() {
-  return groupLetters.map((group) => ({ group, team: state.groupPredictions[group][2] }));
+function getThirds(targetState = state) {
+  return groupLetters.map((group) => ({ group, team: targetState.groupPredictions[group][2] }));
 }
 
 function formatThird(third) {
   return `3.º ${third.team} (Grupo ${third.group})`;
 }
 
-function resolveSeed(seed) {
+function resolveSeed(seed, targetState = state) {
   if (!seed || seed === "3null" || seed === "3undefined") return "";
   const position = Number(seed[0]) - 1;
   const group = seed.slice(1);
-  return state.groupPredictions[group]?.[position] || "";
+  return targetState.groupPredictions[group]?.[position] || "";
 }
 
-function findMatchById(matchId) {
+function findMatchById(matchId, targetState = state) {
   const id = Number(matchId);
-  return Object.values(state.matches).flat().find((match) => match.id === id);
+  return Object.values(targetState.matches).flat().find((match) => match.id === id);
 }
 
-function getLoser(matchId) {
-  const match = findMatchById(matchId);
-  const winner = state.winners[matchId];
+function getLoser(matchId, targetState = state) {
+  const match = findMatchById(matchId, targetState);
+  const winner = targetState.winners[matchId];
   if (!match || !winner) return "";
   return getOtherTeam(match, winner);
 }
@@ -752,11 +862,11 @@ function getOtherTeam(match, team) {
   return "Pendiente";
 }
 
-function pruneWinnersForExistingMatches() {
-  Object.values(state.matches).flat().forEach((match) => {
-    const winner = state.winners[match.id];
+function pruneWinnersForExistingMatches(targetState = state) {
+  Object.values(targetState.matches).flat().forEach((match) => {
+    const winner = targetState.winners[match.id];
     if (winner && winner !== match.teamA && winner !== match.teamB) {
-      delete state.winners[match.id];
+      delete targetState.winners[match.id];
     }
   });
 }
@@ -800,6 +910,7 @@ function migrateSavedGroupPredictions() {
 
 function resetState({ clearStorage = false } = {}) {
   state = createInitialState();
+  selectedForecastId = "";
   if (clearStorage) localStorage.removeItem(STORAGE_KEY);
   renderCurrentStep();
 }
@@ -862,6 +973,20 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  const playerButton = event.target.closest("[data-forecast-player]");
+  if (playerButton) {
+    const forecastId = decodeURIComponent(playerButton.dataset.forecastPlayer);
+    selectedForecastId = selectedForecastId === forecastId ? "" : forecastId;
+    renderCurrentStep();
+    return;
+  }
+
+  if (event.target.closest("[data-clear-forecast]")) {
+    selectedForecastId = "";
+    renderCurrentStep();
+    return;
+  }
+
   const moveButton = event.target.closest("[data-move]");
   if (moveButton) {
     const [group, indexText, directionText] = moveButton.dataset.move.split(":");

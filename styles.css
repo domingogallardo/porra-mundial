@@ -224,6 +224,30 @@ h3 {
   border-bottom: 0;
 }
 
+.score-table tr.forecast-row-active td {
+  background: #e6f5ef;
+}
+
+.player-button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.player-button:hover strong,
+.player-button[aria-pressed="true"] strong {
+  color: var(--primary-dark);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
 .file-name {
   display: block;
   color: var(--muted);
@@ -326,6 +350,20 @@ h3 {
 
 .rank-number {
   color: var(--muted);
+  font-weight: 800;
+}
+
+.forecast-rank-row {
+  grid-template-columns: 42px 1fr;
+}
+
+.forecast-rank-team {
+  min-height: 46px;
+  padding: 11px 12px;
+  border: 1px solid #b8ddd1;
+  border-radius: 8px;
+  background: #f3fbf7;
+  color: var(--primary-dark);
   font-weight: 800;
 }
 
@@ -449,6 +487,29 @@ select {
   cursor: not-allowed;
 }
 
+.team-choice.selected:disabled {
+  color: var(--primary-dark);
+}
+
+.forecast-preview-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid #b8ddd1;
+  border-radius: 8px;
+  background: #e6f5ef;
+  color: var(--primary-dark);
+}
+
+.forecast-preview-banner .button {
+  min-height: 38px;
+  padding: 7px 10px;
+  background: var(--surface);
+}
+
 .summary-box {
   width: 100%;
   min-height: 420px;
@@ -541,6 +602,11 @@ select {
   }
 
   .leaderboard-head {
+    flex-direction: column;
+  }
+
+  .forecast-preview-banner {
+    align-items: stretch;
     flex-direction: column;
   }
 
