@@ -1027,10 +1027,12 @@ document.getElementById("prevButton").addEventListener("click", () => {
 });
 
 document.getElementById("nextButton").addEventListener("click", () => {
-  const validation = validateBeforeNext();
-  if (!validation.ok) {
-    showMessage(validation.message);
-    return;
+  if (!selectedForecastId) {
+    const validation = validateBeforeNext();
+    if (!validation.ok) {
+      showMessage(validation.message);
+      return;
+    }
   }
 
   if (state.currentStep < steps.length - 1) {
