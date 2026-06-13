@@ -255,7 +255,7 @@ function renderLeaderboard() {
       ${renderKnownStage("4os", actual.qf)}
       ${renderKnownStage("Semis", actual.sf)}
       ${renderKnownStage("Final", actual.final)}
-      ${actual.champion ? `<span><strong>Campeón:</strong> ${escapeHtml(actual.champion)}</span>` : `<span><strong>Campeón:</strong> pendiente</span>`}
+      ${actual.champion ? `<span><strong>Campeón:</strong> ${escapeHtml(displayTeamName(actual.champion))}</span>` : `<span><strong>Campeón:</strong> pendiente</span>`}
     </div>
   `;
 }
@@ -266,7 +266,7 @@ function renderScoreRow(score, index) {
       <td>${index + 1}</td>
       <td><strong>${escapeHtml(score.name)}</strong><span class="file-name">${escapeHtml(score.file)}</span></td>
       <td><strong>${score.total}</strong></td>
-      ${scoreRules.map((rule) => `<td title="${escapeHtml(score.hits[rule.key].teams.join(", "))}">${score.hits[rule.key].points}</td>`).join("")}
+      ${scoreRules.map((rule) => `<td title="${escapeHtml(score.hits[rule.key].teams.map(displayTeamName).join(", "))}">${score.hits[rule.key].points}</td>`).join("")}
     </tr>
   `;
 }
@@ -363,7 +363,7 @@ function renderGroupCard(letter) {
 
 function renderRankRow(letter, index, selectedTeam) {
   const options = groups[letter]
-    .map((team) => `<option value="${escapeHtml(team)}" ${team === selectedTeam ? "selected" : ""}>${escapeHtml(team)}</option>`)
+    .map((team) => `<option value="${escapeHtml(team)}" ${team === selectedTeam ? "selected" : ""}>${escapeHtml(displayTeamName(team))}</option>`)
     .join("");
 
   return `
@@ -405,7 +405,7 @@ function renderThirdOption(third) {
   return `
     <label class="third-option ${checked ? "selected" : ""}">
       <input type="checkbox" value="${third.group}" ${checked ? "checked" : ""}>
-      <span><strong>3.º Grupo ${third.group}</strong><br>${escapeHtml(third.team)}</span>
+      <span><strong>3.º Grupo ${third.group}</strong><br>${escapeHtml(displayTeamName(third.team))}</span>
     </label>
   `;
 }
@@ -522,7 +522,7 @@ function renderTeamChoice(matchId, team, winner, disabled) {
   const selected = team && team === winner;
   return `
     <button class="team-choice ${selected ? "selected" : ""}" type="button" data-winner="${matchId}:${escapeAttr(team)}" ${disabled ? "disabled" : ""}>
-      ${team ? escapeHtml(team) : "Pendiente"}
+      ${team ? escapeHtml(displayTeamName(team)) : "Pendiente"}
     </button>
   `;
 }
@@ -702,7 +702,15 @@ function getThirds() {
 }
 
 function formatThird(third) {
-  return `3.º ${third.team} (Grupo ${third.group})`;
+  return `3.º ${displayTeamName(third.team)} (Grupo ${third.group})`;
+}
+
+function displayTeamName(team) {
+  const shortNames = {
+    "República Checa": "Chequia",
+    "República de Corea": "Corea del Sur"
+  };
+  return shortNames[team] || team;
 }
 
 function resolveSeed(seed) {
