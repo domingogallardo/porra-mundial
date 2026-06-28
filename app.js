@@ -612,7 +612,7 @@ function renderKnockoutStep(container, roundKey, viewState = state, readonly = f
     <div class="phase-head">
       <div>
         <h2>${roundNames[roundKey]}</h2>
-        <p class="intro-text">${readonly ? `Ganadores marcados según la porra de ${escapeHtml(forecast.name)}.` : "Toca el equipo que gana cada partido."}</p>
+        <p class="intro-text">${readonly ? `Ganadores marcados según la porra de ${escapeHtml(forecast.name)}.` : "Toca el equipo que gana cada partido. Toca de nuevo el ganador marcado para borrarlo."}</p>
       </div>
     </div>
     ${note}
@@ -665,7 +665,12 @@ function selectWinner(matchId, team) {
   const match = findMatchById(matchId);
   if (!match || !team) return;
 
-  state.winners[matchId] = team;
+  if (state.winners[matchId] === team) {
+    delete state.winners[matchId];
+  } else {
+    state.winners[matchId] = team;
+  }
+
   clearDependentWinners(matchId);
   buildNextRounds(state);
   renderCurrentStep();
