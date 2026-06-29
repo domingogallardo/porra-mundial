@@ -88,6 +88,9 @@ const SCORE_RULES = [
   { key: "champion", points: 32 }
 ];
 
+const EXACT_SCENARIO_LIMIT = 262144;
+const MONTE_CARLO_SAMPLES = 50000;
+
 let selections = loadSelections();
 
 function render() {
@@ -147,54 +150,63 @@ function renderTeamButton(match, team) {
 
 function calculate() {
   clearMessage();
-  const missing = ROUND32_MATCHES.filter((match) => !selections[match.id]);
-  if (missing.length) {
-    showMessage(`Falta elegir ganador en ${missing.length} cruces: ${missing.map((match) => match.id).join(", ")}.`);
-    return;
-  }
-
   const fixedActual = {
     r32: getActualR32Teams(),
-    r16: ROUND32_MATCHES.map((match) => selections[match.id])
+    r16: []
   };
-  const currentScores = forecasts.map((forecast) => ({
-    id: forecast.id,
-    current: scoreForecast(forecast, fixedActual)
-  }));
-  const results = simulateFutureScenarios(fixedActual, currentScores);
+  const currentActual = {
+    ...fixedActual,
+    r16: ROUND32_MATCHES.map((match) => selections[match.id]).filter(Boolean)
+  };
+  const results = simulateScenarios(fixedActual, currentActual);
 
   renderResults(results);
   saveSelections();
-  showMessage("Calculo completado.", "success");
+  showMessage(results[0].exact ? "Calculo exacto completado." : "Estimacion completada.", "success");
 }
 
-function simulateFutureScenarios(fixedActual, currentScores) {
+function simulateScenarios(fixedActual, currentActual) {
   const stats = forecasts.map((forecast) => ({
     id: forecast.id,
     name: forecast.name,
     totalTop: 0,
     uniqueWins: 0,
-    currentPoints: currentScores.find((score) => score.id === forecast.id)?.current || 0
+    currentPoints: scoreForecast(forecast, currentActual)
   }));
 
-  const scenarioCount = 2 ** FUTURE_ROUNDS.reduce((total, round) => total + round.matches.length, 0);
+  const openRound32Matches = ROUND32_MATCHES.filter((match) => !selections[match.id]);
+  const scenarioCount = 2 ** (openRound32Matches.length + FUTURE_ROUNDS.reduce((total, round) => total + round.matches.length, 0));
+  const exact = scenarioCount <= EXACT_SCENARIO_LIMIT;
+  const iterations = exact ? scenarioCount : MONTE_CARLO_SAMPLES;
+  const rng = createSeededRandom(JSON.stringify(selections));
 
-  for (let mask = 0; mask < scenarioCount; mask += 1) {
+  for (let mask = 0; mask < iterations; mask += 1) {
     const actual = {
       ...fixedActual,
+      r16: [],
       qf: [],
       sf: [],
       final: [],
       champion: ""
     };
-    const winners = { ...selections };
     let bit = 0;
+    const winners = {};
+
+    ROUND32_MATCHES.forEach((match) => {
+      const selectedWinner = selections[match.id];
+      const pickSecond = exact ? ((mask >> bit) & 1) : rng() >= 0.5;
+      const winner = selectedWinner || (pickSecond ? match.teamB : match.teamA);
+      winners[match.id] = winner;
+      actual.r16.push(winner);
+      if (!selectedWinner) bit += 1;
+    });
 
     FUTURE_ROUNDS.forEach((round) => {
       round.matches.forEach((match) => {
         const teamA = winners[match.from[0]];
         const teamB = winners[match.from[1]];
-        const winner = (mask >> bit) & 1 ? teamB : teamA;
+        const pickSecond = exact ? ((mask >> bit) & 1) : rng() >= 0.5;
+        const winner = pickSecond ? teamB : teamA;
         winners[match.id] = winner;
         bit += 1;
 
@@ -221,8 +233,10 @@ function simulateFutureScenarios(fixedActual, currentScores) {
   return stats
     .map((stat) => ({
       ...stat,
-      topPct: (stat.totalTop / scenarioCount) * 100,
-      uniquePct: (stat.uniqueWins / scenarioCount) * 100,
+      topPct: (stat.totalTop / iterations) * 100,
+      uniquePct: (stat.uniqueWins / iterations) * 100,
+      exact,
+      iterations,
       scenarios: scenarioCount
     }))
     .sort((a, b) => b.topPct - a.topPct || b.uniquePct - a.uniquePct || a.name.localeCompare(b.name, "es"));
@@ -230,12 +244,17 @@ function simulateFutureScenarios(fixedActual, currentScores) {
 
 function renderResults(results) {
   const top = results[0];
-  const selectedText = ROUND32_MATCHES
-    .map((match) => `${displayTeamName(selections[match.id])}`)
-    .join(", ");
+  const selectedMatches = ROUND32_MATCHES.filter((match) => selections[match.id]);
+  const openCount = ROUND32_MATCHES.length - selectedMatches.length;
+  const selectedText = selectedMatches.length
+    ? selectedMatches.map((match) => `${match.id}: ${displayTeamName(selections[match.id])}`).join(", ")
+    : "ningun cruce fijado";
 
   document.getElementById("resultsPanel").hidden = false;
-  document.getElementById("scenarioSummary").textContent = `Con estos ganadores de dieciseisavos: ${selectedText}.`;
+  document.getElementById("scenarioSummary").textContent = `${selectedText}. Cruces abiertos en dieciseisavos: ${openCount}.`;
+  document.getElementById("scenarioCount").textContent = top.exact
+    ? `${formatInteger(top.scenarios)} escenarios exactos`
+    : `Estimacion: ${formatInteger(top.iterations)} de ${formatInteger(top.scenarios)}`;
   document.getElementById("leaderCards").innerHTML = `
     <article class="leader-card">
       <span>Favorito</span>
@@ -336,6 +355,25 @@ function displayTeamName(team) {
 function formatPct(value) {
   if (value > 0 && value < 0.1) return "<0,1%";
   return `${value.toFixed(1).replace(".", ",")}%`;
+}
+
+function formatInteger(value) {
+  return new Intl.NumberFormat("es-ES").format(value);
+}
+
+function createSeededRandom(seedText) {
+  let seed = 2166136261;
+  for (let index = 0; index < seedText.length; index += 1) {
+    seed ^= seedText.charCodeAt(index);
+    seed = Math.imul(seed, 16777619);
+  }
+  return () => {
+    seed += 0x6D2B79F5;
+    let value = seed;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
 function escapeHtml(value) {
