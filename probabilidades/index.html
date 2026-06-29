@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Probabilidades de la porra</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%230c6f5c'/%3E%3Cpath fill='white' d='M18 18h28v28H18z'/%3E%3Cpath fill='%23b43640' d='M18 18h9v28h-9zM37 18h9v28h-9z'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="probabilidades.css?v=20260629-1">
+    <link rel="stylesheet" href="probabilidades.css?v=20260629-2">
   </head>
   <body>
     <div class="app-shell">
@@ -34,7 +34,7 @@
           <div class="section-head">
             <div>
               <h2 id="matchesTitle">Dieciseisavos</h2>
-              <p>Selecciona un ganador en cada cruce.</p>
+              <p>Selecciona un ganador en cada cruce. El porcentaje cuenta resultados futuros donde cada jugador queda primero, aunque sea empatado.</p>
             </div>
             <div class="actions">
               <button id="clearButton" class="button button-ghost" type="button">Borrar</button>
@@ -60,12 +60,9 @@
                 <tr>
                   <th>#</th>
                   <th>Jugador</th>
-                  <th>Gana o empata</th>
-                  <th>Victoria ponderada</th>
+                  <th>Gana la porra</th>
                   <th>1º en solitario</th>
                   <th>Puntos ahora</th>
-                  <th>Media final</th>
-                  <th>Rango final</th>
                 </tr>
               </thead>
               <tbody id="resultsBody"></tbody>
@@ -76,6 +73,6 @@
     </div>
 
     <script src="../forecasts.js?v=20260612-2"></script>
-    <script src="probabilidades.js?v=20260629-1"></script>
+    <script src="probabilidades.js?v=20260629-2"></script>
   </body>
 </html>

@@ -59,8 +59,8 @@ const FUTURE_ROUNDS = [
     actualKey: "sf",
     matches: [
       { id: 97, from: [89, 90] },
-      { id: 98, from: [91, 92] },
-      { id: 99, from: [93, 94] },
+      { id: 98, from: [93, 94] },
+      { id: 99, from: [91, 92] },
       { id: 100, from: [95, 96] }
     ]
   },
@@ -173,11 +173,7 @@ function simulateFutureScenarios(fixedActual, currentScores) {
     id: forecast.id,
     name: forecast.name,
     totalTop: 0,
-    weightedWins: 0,
     uniqueWins: 0,
-    pointsSum: 0,
-    minPoints: Number.POSITIVE_INFINITY,
-    maxPoints: Number.NEGATIVE_INFINITY,
     currentPoints: currentScores.find((score) => score.id === forecast.id)?.current || 0
   }));
 
@@ -216,16 +212,8 @@ function simulateFutureScenarios(fixedActual, currentScores) {
       .map((total, index) => ({ total, index }))
       .filter((entry) => entry.total === maxScore);
 
-    totals.forEach((total, index) => {
-      const stat = stats[index];
-      stat.pointsSum += total;
-      stat.minPoints = Math.min(stat.minPoints, total);
-      stat.maxPoints = Math.max(stat.maxPoints, total);
-    });
-
     leaders.forEach((leader) => {
       stats[leader.index].totalTop += 1;
-      stats[leader.index].weightedWins += 1 / leaders.length;
       if (leaders.length === 1) stats[leader.index].uniqueWins += 1;
     });
   }
@@ -234,12 +222,10 @@ function simulateFutureScenarios(fixedActual, currentScores) {
     .map((stat) => ({
       ...stat,
       topPct: (stat.totalTop / scenarioCount) * 100,
-      weightedPct: (stat.weightedWins / scenarioCount) * 100,
       uniquePct: (stat.uniqueWins / scenarioCount) * 100,
-      averagePoints: stat.pointsSum / scenarioCount,
       scenarios: scenarioCount
     }))
-    .sort((a, b) => b.weightedPct - a.weightedPct || b.topPct - a.topPct || b.averagePoints - a.averagePoints || a.name.localeCompare(b.name, "es"));
+    .sort((a, b) => b.topPct - a.topPct || b.uniquePct - a.uniquePct || a.name.localeCompare(b.name, "es"));
 }
 
 function renderResults(results) {
@@ -256,12 +242,12 @@ function renderResults(results) {
       <strong>${escapeHtml(top.name)}</strong>
     </article>
     <article class="leader-card">
-      <span>Probabilidad ponderada</span>
-      <strong>${formatPct(top.weightedPct)}</strong>
+      <span>Gana la porra</span>
+      <strong>${formatPct(top.topPct)}</strong>
     </article>
     <article class="leader-card">
-      <span>Posibilidad de empatar primero</span>
-      <strong>${formatPct(top.topPct)}</strong>
+      <span>1º en solitario</span>
+      <strong>${formatPct(top.uniquePct)}</strong>
     </article>
   `;
   document.getElementById("resultsBody").innerHTML = results
@@ -270,11 +256,8 @@ function renderResults(results) {
         <td>${index + 1}</td>
         <td>${escapeHtml(result.name)}</td>
         <td>${formatPct(result.topPct)}</td>
-        <td>${formatPct(result.weightedPct)}</td>
         <td>${formatPct(result.uniquePct)}</td>
         <td>${result.currentPoints}</td>
-        <td>${result.averagePoints.toFixed(1)}</td>
-        <td>${result.minPoints}-${result.maxPoints}</td>
       </tr>
     `)
     .join("");
