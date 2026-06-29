@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Probabilidades de la porra</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%230c6f5c'/%3E%3Cpath fill='white' d='M18 18h28v28H18z'/%3E%3Cpath fill='%23b43640' d='M18 18h9v28h-9zM37 18h9v28h-9z'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="probabilidades.css?v=20260629-1">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Mundial 2026</p>
+          <h1>Probabilidades de ganar la porra</h1>
+          <p class="intro">Elige los ganadores de dieciseisavos y calcula como queda la carrera con el resto del torneo abierto, tratando cada cruce futuro como 50/50.</p>
+        </div>
+        <a class="button button-secondary" href="../">Marcador</a>
+      </header>
+
+      <main>
+        <section class="summary-panel" aria-labelledby="groupsTitle">
+          <div class="section-head">
+            <div>
+              <h2 id="groupsTitle">Fase de grupos cerrada</h2>
+              <p>Clasificados reales incorporados en esta version.</p>
+            </div>
+            <div class="pill" id="qualifiedCount"></div>
+          </div>
+          <div id="groupResults" class="group-grid"></div>
+        </section>
+
+        <section class="matches-panel" aria-labelledby="matchesTitle">
+          <div class="section-head">
+            <div>
+              <h2 id="matchesTitle">Dieciseisavos</h2>
+              <p>Selecciona un ganador en cada cruce.</p>
+            </div>
+            <div class="actions">
+              <button id="clearButton" class="button button-ghost" type="button">Borrar</button>
+              <button id="calculateButton" class="button button-primary" type="button">Calcular</button>
+            </div>
+          </div>
+          <div id="message" class="message" role="status" aria-live="polite" hidden></div>
+          <div id="matches" class="match-grid"></div>
+        </section>
+
+        <section id="resultsPanel" class="results-panel" aria-labelledby="resultsTitle" hidden>
+          <div class="section-head">
+            <div>
+              <h2 id="resultsTitle">Resultado del escenario</h2>
+              <p id="scenarioSummary"></p>
+            </div>
+            <div class="pill strong">32.768 escenarios equiprobables</div>
+          </div>
+          <div id="leaderCards" class="leader-cards"></div>
+          <div class="table-wrap">
+            <table class="results-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Jugador</th>
+                  <th>Gana o empata</th>
+                  <th>Victoria ponderada</th>
+                  <th>1º en solitario</th>
+                  <th>Puntos ahora</th>
+                  <th>Media final</th>
+                  <th>Rango final</th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="../forecasts.js?v=20260612-2"></script>
+    <script src="probabilidades.js?v=20260629-1"></script>
+  </body>
+</html>
