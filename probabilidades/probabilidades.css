@@ -227,6 +227,34 @@ h3 {
   margin-top: 14px;
 }
 
+.rounds-stack {
+  display: grid;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.round-block {
+  min-width: 0;
+}
+
+.round-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.round-title span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.compact-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
 .match-card {
   display: grid;
   gap: 8px;
@@ -264,6 +292,29 @@ h3 {
   background: #dff2eb;
   color: var(--primary-dark);
   box-shadow: inset 4px 0 0 var(--primary);
+}
+
+.fixed-result,
+.pending-choice {
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.fixed-result.selected {
+  border-color: var(--primary);
+  background: #dff2eb;
+  color: var(--primary-dark);
+  box-shadow: inset 4px 0 0 var(--primary);
+}
+
+.pending-choice {
+  color: var(--muted);
+  font-size: 0.9rem;
 }
 
 .leader-cards {
