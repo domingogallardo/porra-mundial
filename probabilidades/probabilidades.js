@@ -189,18 +189,23 @@ function renderFutureRound(round, matches) {
 }
 
 function renderFutureMatch(match) {
-  const disabled = !match.teamA || !match.teamB;
+  const selectable = Boolean(match.teamA && match.teamB);
   return `
     <article class="match-card">
       <div class="match-meta">
         <span>Partido ${match.id}</span>
-        <span>${disabled ? "Pendiente" : "Disponible"}</span>
+        <span>${selectable ? "Disponible" : "Pendiente"}</span>
       </div>
-      ${disabled
-        ? `<div class="pending-choice">Pendiente del cruce anterior</div><div class="pending-choice">Pendiente del cruce anterior</div>`
-        : `${renderTeamButton(match, match.teamA)}${renderTeamButton(match, match.teamB)}`}
+      ${renderFutureMatchSlot(match, match.teamA)}
+      ${renderFutureMatchSlot(match, match.teamB)}
     </article>
   `;
+}
+
+function renderFutureMatchSlot(match, team) {
+  if (!team) return `<div class="pending-choice">Pendiente del cruce anterior</div>`;
+  if (!match.teamA || !match.teamB) return `<div class="fixed-result">${escapeHtml(displayTeamName(team))}</div>`;
+  return renderTeamButton(match, team);
 }
 
 function buildKnownBracket() {
