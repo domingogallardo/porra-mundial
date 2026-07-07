@@ -1,6 +1,7 @@
 "use strict";
 
 const forecasts = window.familyForecasts || [];
+const participantForecasts = forecasts.filter((forecast) => forecast.id !== "chatgpt");
 const STORAGE_KEY = "porraMundial2026ProbabilidadesR32";
 
 const GROUP_RESULTS = {
@@ -294,7 +295,7 @@ function calculate() {
 }
 
 function simulateScenarios(fixedActual, currentActual) {
-  const stats = forecasts.map((forecast) => ({
+  const stats = participantForecasts.map((forecast) => ({
     id: forecast.id,
     name: forecast.name,
     totalTop: 0,
@@ -336,7 +337,7 @@ function simulateScenarios(fixedActual, currentActual) {
       });
     });
 
-    const totals = forecasts.map((forecast) => scoreForecast(forecast, actual));
+    const totals = participantForecasts.map((forecast) => scoreForecast(forecast, actual));
     const maxScore = Math.max(...totals);
     const podiumScores = [...new Set(totals)].sort((a, b) => b - a);
     const secondPlaceScore = podiumScores[1] ?? podiumScores[0];
