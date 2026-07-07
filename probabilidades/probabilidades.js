@@ -298,6 +298,7 @@ function simulateScenarios(fixedActual, currentActual) {
     id: forecast.id,
     name: forecast.name,
     totalTop: 0,
+    totalTopTwo: 0,
     uniqueWins: 0,
     currentPoints: scoreForecast(forecast, currentActual)
   }));
@@ -336,6 +337,8 @@ function simulateScenarios(fixedActual, currentActual) {
 
     const totals = forecasts.map((forecast) => scoreForecast(forecast, actual));
     const maxScore = Math.max(...totals);
+    const podiumScores = [...new Set(totals)].sort((a, b) => b - a);
+    const secondPlaceScore = podiumScores[1] ?? podiumScores[0];
     const leaders = totals
       .map((total, index) => ({ total, index }))
       .filter((entry) => entry.total === maxScore);
@@ -344,16 +347,28 @@ function simulateScenarios(fixedActual, currentActual) {
       stats[leader.index].totalTop += 1;
       if (leaders.length === 1) stats[leader.index].uniqueWins += 1;
     });
+
+    totals.forEach((total, index) => {
+      if (total >= secondPlaceScore) {
+        stats[index].totalTopTwo += 1;
+      }
+    });
   }
 
   return stats
     .map((stat) => ({
       ...stat,
       topPct: (stat.totalTop / scenarioCount) * 100,
+      topTwoPct: (stat.totalTopTwo / scenarioCount) * 100,
       uniquePct: (stat.uniqueWins / scenarioCount) * 100,
       scenarios: scenarioCount
     }))
-    .sort((a, b) => b.topPct - a.topPct || b.uniquePct - a.uniquePct || a.name.localeCompare(b.name, "es"));
+    .sort((a, b) =>
+      b.topPct - a.topPct ||
+      b.topTwoPct - a.topTwoPct ||
+      b.uniquePct - a.uniquePct ||
+      a.name.localeCompare(b.name, "es")
+    );
 }
 
 function renderResults(results) {
@@ -387,6 +402,7 @@ function renderResults(results) {
         <td>${index + 1}</td>
         <td>${escapeHtml(result.name)}</td>
         <td>${formatPct(result.topPct)}</td>
+        <td>${formatPct(result.topTwoPct)}</td>
         <td>${formatPct(result.uniquePct)}</td>
         <td>${result.currentPoints}</td>
       </tr>
